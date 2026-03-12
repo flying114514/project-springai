@@ -78,8 +78,8 @@ public class FileStorageService {
         if (!fileExists(fileKey)) {
             throw new BusinessException(ErrorCode.STORAGE_DOWNLOAD_FAILED, "文件不存在" + fileKey);
         }
-        /**
-         * 配置一个请求
+        /*
+          配置一个请求
          */
         try {
             GetObjectRequest getRequest = GetObjectRequest.builder()
@@ -96,7 +96,6 @@ public class FileStorageService {
     /**
      * 文件删除方法
      *
-     * @param fileKey
      */
     private void deleteFile(String fileKey) {
         // 空键直接跳过
@@ -127,12 +126,11 @@ public class FileStorageService {
     /**
      * 判断文件是否存在,只要不存在就会返回错误
      *
-     * @param fileKey
      * @return boolean
      */
     private boolean fileExists(String fileKey) {
-        /**
-         * 配置一个请求
+        /*
+          配置一个请求
          */
         try {
             HeadObjectRequest headRequest = HeadObjectRequest.builder()
@@ -156,8 +154,8 @@ public class FileStorageService {
     private String uploadFile(MultipartFile file, String prefix) {
         String originalFilename = file.getOriginalFilename();
         String fileKey = generateFileKey(originalFilename, prefix);
-        /**
-         * 配置一个请求
+        /*
+          配置一个请求
          */
         try {
             PutObjectRequest putRequest = PutObjectRequest.builder()
@@ -260,8 +258,8 @@ public class FileStorageService {
      * 确保存储桶存在
      */
     public void ensureBucketExists() {
-        /**
-         * 配置一个请求,通过向这个桶发起请求,来判断现在是否存在这个存储桶
+        /*
+          配置一个请求,通过向这个桶发起请求,来判断现在是否存在这个存储桶
          */
         try {
             HeadBucketRequest headRequest = HeadBucketRequest.builder()
