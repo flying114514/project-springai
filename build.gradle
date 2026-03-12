@@ -27,6 +27,7 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 
     compileOnly 'org.projectlombok:lombok'
 
@@ -39,6 +40,14 @@ dependencies {
 
     // Pinyin4j - 汉字转拼音
     implementation 'com.belerweb:pinyin4j:2.5.0'
+
+    // Apache Tika for document parsing (PDF, DOCX, TXT)
+    implementation 'org.apache.tika:tika-core:2.9.2'
+    implementation 'org.apache.tika:tika-parsers-standard-package:2.9.2'
+
+    // Redisson 4.0 - Redis客户端 (Boot 4.0 compatible)
+    implementation 'org.redisson:redisson-spring-boot-starter:4.0.0'
+
 }
 
 tasks.named('test') {

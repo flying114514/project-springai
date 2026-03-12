@@ -70,6 +70,12 @@ public class FileStorageService {
         deleteFile(fileKey);
     }
 
+    /**
+     * 获取文件URL
+     */
+    public String getFileUrl(String fileKey) {
+        return String.format("%s/%s/%s", storageConfig.getEndpoint(), storageConfig.getBucket(), fileKey);
+    }
 
     /**
      * 下载文件通用方法

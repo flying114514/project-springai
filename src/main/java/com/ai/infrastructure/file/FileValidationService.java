@@ -1,0 +1,60 @@
+package com.ai.infrastructure.file;
+
+import com.ai.common.exception.BusinessException;
+import com.ai.common.exception.ErrorCode;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+
+/**
+ * 文件验证服务类
+ */
+@Slf4j
+@Service
+public class FileValidationService {
+    /**
+     * 验证文件基本属性（是否为空、文件大小）
+     *
+     * @param file         上传的文件
+     * @param maxSizeBytes 最大文件大小（字节）
+     * @param fileTypeName 文件类型名称（用于错误消息，如"简历"、"知识库"）
+     */
+    public void validateFile(MultipartFile file, long maxSizeBytes, String fileTypeName) {
+        if (file.isEmpty()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST,
+                    String.format("请选择要上传的%s文件", fileTypeName));
+        }
+
+        if (file.getSize() > maxSizeBytes) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "文件大小超过限制");
+        }
+    }
+
+    /**
+     * 验证文件类型（基于MIME类型）
+     *
+     * @param contentType 文件的MIME类型
+     * @param allowedTypes 允许的MIME类型列表（支持部分匹配，如"pdf"会匹配"application/pdf"）
+     * @param errorMessage 验证失败时的错误消息
+     */
+    public void validateContentTypeByList(String contentType, List<String> allowedTypes, String errorMessage) {
+        if (!isAllowedType(contentType, allowedTypes)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST,
+                    errorMessage != null ? errorMessage : "不支持的文件类型: " + contentType);
+        }
+    }
+
+    private boolean isAllowedType(String contentType, List<String> allowedTypes) {
+        if (contentType == null || allowedTypes == null || allowedTypes.isEmpty()) {
+            return false;
+        }
+        String lowerContentType = contentType.toLowerCase();
+        return allowedTypes.stream()
+                .anyMatch(allowed -> {
+                    String lowerAllowed = allowed.toLowerCase();
+                    return lowerContentType.contains(lowerAllowed) || lowerAllowed.contains(lowerContentType);
+                });
+    }
+}
