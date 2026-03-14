@@ -39,7 +39,7 @@ public class ResumeUploadService {
      * @param file 简历文件
      * @return 上传结果（分析将异步进行）
      */
-    public Map<String, Object> uploadAndAnalyse(MultipartFile file) {
+    public Map<String, Object> uploadAndAnalyze(MultipartFile file) {
         // 1.验证文件,简单验证文件大小以及是否为空
         fileValidationService.validateFile(file, MAX_FILE_SIZE, "简历");
 

@@ -1,0 +1,29 @@
+String systemPrompt = systemPromptTemplate.render();
+首先加载提前写好的系统提示词
+
+Map<String, Object> variables = new HashMap<>();
+variables.put("resumeText", resumeText);
+String userPrompt = userPromptTemplate.render(variables);
+创建一个新map,用来存放传进来的简历文本,然后把这个文本替代原本写好的用户提示词的{resumeText}的位置
+
+String systemPromptWithFormat = systemPrompt + "\n\n" + outputConverter.getFormat();
+完善系统提示词
+
+            ResumeAnalysisResponseDTO dto;
+            try {
+                dto = structuredOutputInvoker.invoke(
+                        chatClient,
+                        systemPromptWithFormat,
+                        userPrompt,
+                        outputConverter,
+                        ErrorCode.RESUME_ANALYSIS_FAILED,
+                        "简历分析失败：",
+                        "简历分析",
+                        log
+                );
+返回ai分析结果
+            ResumeAnalysisResponse result = convertToResponse(dto, resumeText);
+            log.info("简历分析完成，总分: {}", result.overallScore());
+ai返回结果转换为业务类
+
+
