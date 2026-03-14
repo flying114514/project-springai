@@ -1,7 +1,7 @@
 package com.ai.modules.resume;
 
 
-import com.ai.annotation.RateLimit;
+import com.ai.common.annotation.RateLimit;
 import com.ai.common.result.Result;
 import com.ai.modules.resume.service.ResumeUploadService;
 import lombok.RequiredArgsConstructor;
