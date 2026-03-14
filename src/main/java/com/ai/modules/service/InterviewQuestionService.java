@@ -221,9 +221,11 @@ public class InterviewQuestionService {
             }
             QuestionType type = parseQuestionType(q.type());
             int mainQuestionIndex = index;
+            // 添加一道主问题
             questions.add(InterviewQuestionDTO.create(index++, q.question(), type, q.category(), false, null));
 
             List<String> followUps = sanitizeFollowUps(q.followUps());
+            // 添加多道追问题
             for (int i = 0; i < followUps.size(); i++) {
                 questions.add(InterviewQuestionDTO.create(
                         index++,
