@@ -1,1 +1,189 @@
-evaluateInterview是这个类的主
+evaluateInterview是这个类的主入口方法
+
+            // 简历摘要（限制长度）
+            String resumeSummary = resumeText.length() > 500
+                    ? resumeText.substring(0, 500) + "..."
+                    : resumeText;
+                    首先限制简历摘要的长度小于500
+
+
+List<BatchEvaluationResult> batchResults = evaluateInBatches(sessionId, resumeSummary, questions);
+分批次分析问答,防止一次把所有问答都传进来导致token超限,分批次得到分析结果batchResults
+
+先创建问答记录的字符串,补充到用户提示词中
+然后每一批次进行            EvaluationReportDTO dto = structuredOutputInvoker.invoke(
+                            chatClient,
+                            systemPromptWithFormat,
+                            userPrompt,
+                            outputConverter,
+                            ErrorCode.INTERVIEW_EVALUATION_FAILED,
+                            "面试评估失败：",
+                            "批次评估",
+                            log
+                    );
+得到每一批次的ai分析结果
+            // 获得批次的评估结果report
+            EvaluationReportDTO report = evaluateBatch(sessionId, resumeSummary, batchQuestions, start, end);
+            results.add(new BatchEvaluationResult(start, end, report));
+把各个批次的分析结果累计到results中
+
+    // 合并各批次的问题评估，处理缺失情况
+    private List<QuestionEvaluationDTO> mergeQuestionEvaluations(List<BatchEvaluationResult> batchResults) {
+        List<QuestionEvaluationDTO> merged = new ArrayList<>();
+        for (BatchEvaluationResult result : batchResults) {
+            int expectedSize = result.endIndex() - result.startIndex();
+            List<QuestionEvaluationDTO> current =
+                    result.report() != null && result.report().questionEvaluations() != null
+                            ? result.report().questionEvaluations()
+                            : List.of();
+            for (int i = 0; i < expectedSize; i++) {
+                if (i < current.size() && current.get(i) != null) {
+                    merged.add(current.get(i));
+                } else {
+                    merged.add(new QuestionEvaluationDTO(
+                            result.startIndex() + i,
+                            0,
+                            "该题未成功生成评估结果，系统按 0 分处理。",
+                            "",
+                            List.of()
+                    ));
+                }
+            }
+        }
+        return merged;
+    }
+合并各批次的问题评估，处理缺失情况
+
+    private String mergeOverallFeedback(List<BatchEvaluationResult> batchResults) {
+        String feedback = batchResults.stream()
+                .map(BatchEvaluationResult::report)
+                .filter(r -> r != null && r.overallFeedback() != null && !r.overallFeedback().isBlank())
+                .map(EvaluationReportDTO::overallFeedback)
+                .collect(Collectors.joining("\n\n"));
+        if (!feedback.isBlank()) {
+            return feedback;
+        }
+        return "本次面试已完成分批评估，但未生成有效综合评语。";
+    }
+合并综合反馈
+// 合并优点和改进建议（去重，限制 8 条）true=处理优点列表，false=处理改进建议列表
+            List<String> fallbackStrengths = mergeListItems(batchResults, true);
+            List<String> fallbackImprovements = mergeListItems(batchResults, false);
+ private List<String> mergeListItems(List<BatchEvaluationResult> batchResults, boolean strengthsMode) {
+        // LinkedHashSet有序 去重
+        Set<String> merged = new LinkedHashSet<>();
+        for (BatchEvaluationResult result : batchResults) {
+            EvaluationReportDTO report = result.report();
+            if (report == null) {
+                continue;
+            }
+            List<String> items = strengthsMode ? report.strengths() : report.improvements();
+            if (items == null) {
+                continue;
+            }
+            items.stream()
+                    .filter(item -> item != null && !item.isBlank())
+                    .map(String::trim) // 去除首尾空格
+                    .forEach(merged::add); // 添加到集合中
+        }
+        return merged.stream().limit(8).toList(); // 最多返回 8 条（避免列表过长）
+    }
+
+            // 二次合并,将之前的所有结果累计
+            FinalSummaryDTO finalSummary = summarizeBatchResults(
+                    sessionId,
+                    resumeSummary,
+                    questions,
+                    mergedEvaluations,
+                    fallbackOverallFeedback,
+                    fallbackStrengths,
+                    fallbackImprovements
+            );
+                        // 转换为业务对象
+                        return convertToReport(
+                                sessionId,
+                                mergedEvaluations,
+                                questions,
+                                finalSummary.overallFeedback(),
+                                finalSummary.strengths(),
+                                finalSummary.improvements()
+                        );
+
+
+
+
+
+private FinalSummaryDTO summarizeBatchResults(
+            String sessionId,
+            String resumeSummary,
+            List<InterviewQuestionDTO> questions,
+            List<QuestionEvaluationDTO> evaluations,
+            String fallbackOverallFeedback,
+            List<String> fallbackStrengths,
+            List<String> fallbackImprovements
+    ) {
+        try {
+            String summarySystemPrompt = summarySystemPromptTemplate.render();
+            Map<String, Object> variables = new HashMap<>();
+            variables.put("resumeText", resumeSummary);
+            variables.put("categorySummary", buildCategorySummary(questions, evaluations));
+            variables.put("questionHighlights", buildQuestionHighlights(questions, evaluations));
+            variables.put("fallbackOverallFeedback", fallbackOverallFeedback);
+            variables.put("fallbackStrengths", String.join("\n", fallbackStrengths));
+            variables.put("fallbackImprovements", String.join("\n", fallbackImprovements));
+            String summaryUserPrompt = summaryUserPromptTemplate.render(variables);
+
+            String systemPromptWithFormat = summarySystemPrompt + "\n\n" + summaryOutputConverter.getFormat();
+            FinalSummaryDTO dto = structuredOutputInvoker.invoke(
+                    chatClient,
+                    systemPromptWithFormat,
+                    summaryUserPrompt,
+                    summaryOutputConverter,
+                    ErrorCode.INTERVIEW_EVALUATION_FAILED,
+                    "面试总结失败：",
+                    "总结评估",
+                    log
+            );
+
+            String overallFeedback = dto != null && dto.overallFeedback() != null && !dto.overallFeedback().isBlank()
+                    ? dto.overallFeedback()
+                    : fallbackOverallFeedback;
+            // 清理优势和建议,使用降级策略,防止dto为空,没能调用到ai,直接使用之前可能出现重复的聚合数据
+            List<String> strengths = sanitizeSummaryItems(
+                    dto != null ? dto.strengths() : null,
+                    fallbackStrengths
+            );
+            List<String> improvements = sanitizeSummaryItems(
+                    dto != null ? dto.improvements() : null,
+                    fallbackImprovements
+            );
+
+            log.debug("二次汇总评估完成: sessionId={}", sessionId);
+            return new FinalSummaryDTO(overallFeedback, strengths, improvements);
+        } catch (Exception e) {
+            log.warn("二次汇总评估失败，降级到批次聚合结果: sessionId={}, error={}", sessionId, e.getMessage());
+            return new FinalSummaryDTO(
+                    fallbackOverallFeedback,
+                    fallbackStrengths,
+                    fallbackImprovements
+            );
+        }
+    }
+
+
+
+
+          private List<String> sanitizeSummaryItems(List<String> primary, List<String> fallback) {
+              // 这是一种降级策略，优先使用 AI 生成的新结果，失败时使用旧的聚合结果
+              List<String> source = (primary != null && !primary.isEmpty()) ? primary : fallback;
+              if (source == null || source.isEmpty()) {
+                  return List.of();
+              }
+              return source.stream()
+                      .filter(item -> item != null && !item.isBlank())  // 过滤
+                      .map(String::trim)                                      // 清理
+                      .distinct()                                         // 去重
+                      .limit(8)                                   // 限制数量
+                      .toList();                                          // 收集
+          }
+"优先使用 AI 新生成的结果，如果生成失败或质量差，就退而求其次使用之前批次聚合的结果"

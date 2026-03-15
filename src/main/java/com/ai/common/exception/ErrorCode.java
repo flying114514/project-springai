@@ -2,6 +2,10 @@ package com.ai.common.exception;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+
+/**
+ * 错误码枚举
+ */
 @Getter
 @AllArgsConstructor
 public enum ErrorCode {

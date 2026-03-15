@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * 文件验证服务类
@@ -56,5 +57,65 @@ public class FileValidationService {
                     String lowerAllowed = allowed.toLowerCase();
                     return lowerContentType.contains(lowerAllowed) || lowerAllowed.contains(lowerContentType);
                 });
+    }
+
+    /**
+     * 验证文件类型（基于MIME类型和文件扩展名）
+     *
+     * @param contentType 文件的MIME类型
+     * @param fileName 文件名（用于扩展名检查）
+     * @param mimeTypeChecker MIME类型检查器
+     * @param extensionChecker 文件扩展名检查器
+     * @param errorMessage 验证失败时的错误消息
+     */
+    public void validateContentType(String contentType, String fileName,
+                                    Predicate<String> mimeTypeChecker,
+                                    Predicate<String> extensionChecker,
+                                    String errorMessage) {
+        // 先检查MIME类型
+        if (mimeTypeChecker.test(contentType)) {
+            return;
+        }
+
+        // 如果MIME类型不支持，再检查文件扩展名
+        if (fileName != null && extensionChecker.test(fileName)) {
+            return;
+        }
+
+        throw new BusinessException(ErrorCode.BAD_REQUEST,
+                errorMessage != null ? errorMessage : "不支持的文件类型: " + contentType);
+    }
+
+    /**
+     * 检查MIME类型是否为知识库支持的格式
+     */
+    public boolean isKnowledgeBaseMimeType(String contentType) {
+        if (contentType == null) {
+            return false;
+        }
+
+        String lowerContentType = contentType.toLowerCase();
+        return lowerContentType.contains("pdf") ||
+                lowerContentType.contains("msword") ||
+                lowerContentType.contains("wordprocessingml") ||
+                lowerContentType.contains("text/plain") ||
+                lowerContentType.contains("text/markdown") ||
+                lowerContentType.contains("text/x-markdown") ||
+                lowerContentType.contains("text/x-web-markdown") ||
+                lowerContentType.contains("application/rtf");
+    }
+
+    /**
+     * 检查文件扩展名是否为Markdown格式
+     */
+    public boolean isMarkdownExtension(String fileName) {
+        if (fileName == null) {
+            return false;
+        }
+
+        String lowerFileName = fileName.toLowerCase();
+        return lowerFileName.endsWith(".md") ||
+                lowerFileName.endsWith(".markdown") ||
+                lowerFileName.endsWith(".mdown");
     }
 }

@@ -233,7 +233,7 @@ public class AnswerEvaluationService {
     }
 
     private List<String> mergeListItems(List<BatchEvaluationResult> batchResults, boolean strengthsMode) {
-        // 有序 去重
+        // LinkedHashSet有序 去重
         Set<String> merged = new LinkedHashSet<>();
         for (BatchEvaluationResult result : batchResults) {
             EvaluationReportDTO report = result.report();
@@ -287,7 +287,7 @@ public class AnswerEvaluationService {
             String overallFeedback = dto != null && dto.overallFeedback() != null && !dto.overallFeedback().isBlank()
                     ? dto.overallFeedback()
                     : fallbackOverallFeedback;
-            // 清理优势和建议
+            // 清理优势和建议,使用降级策略,防止dto为空,没能调用到ai,直接使用之前可能出现重复的聚合数据
             List<String> strengths = sanitizeSummaryItems(
                     dto != null ? dto.strengths() : null,
                     fallbackStrengths

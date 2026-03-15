@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.xml.sax.SAXException;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -50,6 +51,33 @@ public class DocumentParseService {
         }
 
         try (InputStream inputStream = file.getInputStream()) {
+            String content = parseContent(inputStream);
+            String cleanedContent = textCleaningService.cleanText(content);
+            log.info("文件解析成功，提取文本长度: {} 字符", cleanedContent.length());
+            return cleanedContent;
+        } catch (IOException | TikaException | SAXException e) {
+            log.error("文件解析失败: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "文件解析失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 解析字节数组形式的文件内容
+     *
+     * @param fileBytes 文件字节数组
+     * @param fileName  原始文件名（用于日志）
+     * @return 提取的文本内容
+     */
+    public String parseContent(byte[] fileBytes, String fileName) {
+        log.info("开始解析文件（从字节数组）: {}", fileName);
+
+        // 处理空文件
+        if (fileBytes == null || fileBytes.length == 0) {
+            log.warn("文件字节数组为空: {}", fileName);
+            return "";
+        }
+
+        try (InputStream inputStream = new ByteArrayInputStream(fileBytes)) {
             String content = parseContent(inputStream);
             String cleanedContent = textCleaningService.cleanText(content);
             log.info("文件解析成功，提取文本长度: {} 字符", cleanedContent.length());
