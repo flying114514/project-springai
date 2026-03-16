@@ -235,12 +235,16 @@ public class KnowledgeBaseQueryService {
     }
 
     private QueryContext buildQueryContext(String originalQuestion) {
+        // 清洗原问题
         String normalizedQuestion = normalizeQuestion(originalQuestion);
+        // ai重写问题
         String rewrittenQuestion = rewriteQuestion(normalizedQuestion);
+        // LinkedHashSet保证ai重写问题和原问题不一样
         Set<String> candidates = new LinkedHashSet<>();
         candidates.add(rewrittenQuestion);
         candidates.add(normalizedQuestion);
 
+        // 根据问题长度选择合适的搜索参数
         SearchParams searchParams = resolveSearchParams(normalizedQuestion);
         return new QueryContext(normalizedQuestion, new ArrayList<>(candidates), searchParams);
     }
@@ -250,6 +254,7 @@ public class KnowledgeBaseQueryService {
     }
 
     private List<Document> retrieveRelevantDocs(QueryContext queryContext, List<Long> knowledgeBaseIds) {
+        // 先尝试ai优化后的问题,然后尝试原问题,前端传递给我kbid,所以我需要在指定kbid的索引中搜索
         for (String candidateQuery : queryContext.candidateQueries()) {
             if (candidateQuery.isBlank()) {
                 continue;
@@ -261,6 +266,7 @@ public class KnowledgeBaseQueryService {
                 queryContext.searchParams().minScore()
             );
             log.info("检索候选 query='{}'，命中 {} 条", candidateQuery, docs.size());
+            // 命中有效结果则返回
             if (hasEffectiveHit(candidateQuery, docs)) {
                 return docs;
             }

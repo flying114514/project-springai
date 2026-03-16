@@ -1,0 +1,65 @@
+ /**
+     * 基于多个知识库回答用户问题（RAG）
+     *
+     * @param knowledgeBaseIds 知识库ID列表
+     * @param question 用户问题
+     * @return AI回答
+     */
+    public String answerQuestion(List<Long> knowledgeBaseIds, String question) {
+        log.info("收到知识库提问: kbIds={}, question={}", knowledgeBaseIds, question);
+        if (knowledgeBaseIds == null || knowledgeBaseIds.isEmpty() || normalizeQuestion(question).isBlank()) {
+            return NO_RESULT_RESPONSE;
+        }
+
+        // 1. 验证知识库是否存在并更新问题计数（合并数据库操作）
+        countService.updateQuestionCounts(knowledgeBaseIds);
+
+        // 2. 查询重写 + 动态参数检索（RAG）
+        QueryContext queryContext = buildQueryContext(question);
+        List<Document> relevantDocs = retrieveRelevantDocs(queryContext, knowledgeBaseIds);
+
+        if (!hasEffectiveHit(question, relevantDocs)) {
+            return NO_RESULT_RESPONSE;
+        }
+
+        // 3. 构建上下文（合并检索到的文档）
+        String context = relevantDocs.stream()
+                .map(Document::getText)
+                .collect(Collectors.joining("\n\n---\n\n"));
+
+        log.debug("检索到 {} 个相关文档片段", relevantDocs.size());
+
+        // 4. 构建提示词
+        String systemPrompt = buildSystemPrompt();
+        String userPrompt = buildUserPrompt(context, question);
+
+        try {
+            // 5. 调用AI生成回答
+            String answer = chatClient.prompt()
+                    .system(systemPrompt)
+                    .user(userPrompt)
+                    .call()
+                    .content();
+            answer = normalizeAnswer(answer);
+
+            log.info("知识库问答完成: kbIds={}", knowledgeBaseIds);
+            return answer;
+
+        } catch (Exception e) {
+            log.error("知识库问答失败: {}", e.getMessage(), e);
+            throw new BusinessException(ErrorCode.KNOWLEDGE_BASE_QUERY_FAILED, "知识库查询失败：" + e.getMessage());
+        }
+    }
+
+
+    首先看看你给我的id是不是空的
+    然后我拿着id去找找,是不是都能找到对应的知识库,如果找到了,每个知识库的 questionCount +1，表示该知识库参与回答的次数
+
+    然后进行查询重写,把用户的查询提示词使用ai优化,得到一个对象queryContext,其中包括这些属性:
+    原问题
+    一个列表,第一个值是ai优化后的问题,第二个值是清洗后的原问题
+    搜索参数topk和minScore
+
+    然后拿着优化好的提示词和knowledgeBaseIds去检索向量,要注意的是,前端给我们knowledgeBaseIds,所以我们检索向量时有限制范围
+    然后把所有检索到的文件拼接,补充用户提示词
+    调用ai回答,返回结果

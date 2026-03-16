@@ -5,15 +5,14 @@ import com.ai.common.exception.BusinessException;
 import com.ai.common.exception.ErrorCode;
 import com.ai.infrastructure.file.FileStorageService;
 import com.ai.infrastructure.mapper.KnowledgeBaseMapper;
-import com.ai.modules.knowledgebase.model.KnowledgeBaseEntity;
-import com.ai.modules.knowledgebase.model.KnowledgeBaseListItemDTO;
-import com.ai.modules.knowledgebase.model.KnowledgeBaseStatsDTO;
-import com.ai.modules.knowledgebase.model.VectorStatus;
+import com.ai.modules.knowledgebase.model.*;
 import com.ai.modules.knowledgebase.repository.KnowledgeBaseRepository;
+import com.ai.modules.resume.repository.RagChatMessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.ai.modules.knowledgebase.model.RagChatMessageEntity.MessageType;
 
 import java.util.List;
 import java.util.Optional;
