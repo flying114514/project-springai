@@ -164,6 +164,7 @@ public class KnowledgeBaseQueryService {
      * 查询知识库并返回完整响应
      */
     public QueryResponse queryKnowledgeBase(QueryRequest request) {
+        // 调用ai回答问题
         String answer = answerQuestion(request.knowledgeBaseIds(), request.question());
 
         // 获取知识库名称（多个知识库用逗号分隔）
@@ -208,7 +209,7 @@ public class KnowledgeBaseQueryService {
 
             log.debug("检索到 {} 个相关文档片段", relevantDocs.size());
 
-            // 4. 构建提示词
+            // 4. 构建提示词,到这一步和非流式输出的逻辑是一样的
             String systemPrompt = buildSystemPrompt();
             String userPrompt = buildUserPrompt(context, question);
 
@@ -220,12 +221,12 @@ public class KnowledgeBaseQueryService {
                     .content();
 
             log.info("开始流式输出知识库回答(探测窗口): kbIds={}", knowledgeBaseIds);
-            return normalizeStreamOutput(responseFlux)
-                .doOnComplete(() -> log.info("流式输出完成: kbIds={}", knowledgeBaseIds))
+            return normalizeStreamOutput(responseFlux) // 防止ai不能回答,输出长篇拒答文字
+                .doOnComplete(() -> log.info("流式输出完成: kbIds={}", knowledgeBaseIds)) // 完成后打印日志
                 .onErrorResume(e -> {
                     log.error("流式输出失败: kbIds={}, error={}", knowledgeBaseIds, e.getMessage(), e);
                     return Flux.just("【错误】知识库查询失败：AI服务暂时不可用，请稍后重试。");
-                });
+                }); // 捕获错误并返回友好的错误提示，而不是直接抛出异常
 
         } catch (Exception e) {
             log.error("知识库流式问答失败: {}", e.getMessage(), e);

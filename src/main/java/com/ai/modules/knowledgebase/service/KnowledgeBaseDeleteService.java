@@ -37,10 +37,10 @@ public class KnowledgeBaseDeleteService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "知识库不存在"));
 
         // 2. 删除所有RAG会话中的知识库关联（必须先删除关联，否则外键约束会阻止删除）
-        // 查询所有关联了该知识库的 RAG 会话,RAG会话和知识库的关系是多对多
+        // 查询所有关联了该知识库的 RAG 会话sessions,RAG会话和知识库的关系是多对多
         List<RagChatSessionEntity> sessions = sessionRepository.findByKnowledgeBaseIds(List.of(id));
         for (RagChatSessionEntity session : sessions) {
-            // 条件删除
+            // 条件删除,这里只是删除了关联会话和即将要被删除的知识库的关联,并不是直接把会话给删了
             session.getKnowledgeBases().removeIf(kbEntity -> kbEntity.getId().equals(id));
             sessionRepository.save(session);
             log.debug("已从会话中移除知识库关联: sessionId={}, kbId={}", session.getId(), id);

@@ -77,15 +77,19 @@ public class KnowledgeBaseController {
 
     /**
      * 基于知识库回答问题（支持多知识库）
+     * 使用限流注解
      */
     @PostMapping("/api/knowledgebase/query")
     @RateLimit(dimensions = {RateLimit.Dimension.GLOBAL, RateLimit.Dimension.IP}, count = 10)
     public Result<QueryResponse> queryKnowledgeBase(@Valid @RequestBody QueryRequest request) {
+
+        // 传递回来所有知识库名称,答案,第一个知识库的id
         return Result.success(queryService.queryKnowledgeBase(request));
     }
 
     /**
      * 基于知识库回答问题（流式SSE，支持多知识库）
+     * 使用限流注解和虚拟线程
      */
     @PostMapping(value = "/api/knowledgebase/query/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @RateLimit(dimensions = {RateLimit.Dimension.GLOBAL, RateLimit.Dimension.IP}, count = 5)
