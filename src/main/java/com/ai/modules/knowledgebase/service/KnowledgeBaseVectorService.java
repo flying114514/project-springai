@@ -36,7 +36,8 @@ public class KnowledgeBaseVectorService {
         this.textSplitter = new TokenTextSplitter();
     }
     /**
-     * 将知识库内容向量化并存储
+     * 将知识库内容向量化并存储,该方法提供给consumer消费,实现将producer传来的知识库数据向量化存储
+     * 该方法是向量化工作的核心方法
      * @param knowledgeBaseId 知识库ID
      * @param content 知识库文本内容
      */
@@ -90,11 +91,13 @@ public class KnowledgeBaseVectorService {
                 query, knowledgeBaseIds, topK, minScore);
 
         try {
+            // 设置查询结果是得分前几名
             SearchRequest.Builder builder = SearchRequest.builder()
                     .query(query)
                     .topK(Math.max(topK, 1));
 
             if (minScore > 0) {
+                // 设置最低得分
                 builder.similarityThreshold(minScore);
             }
 

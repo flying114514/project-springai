@@ -115,5 +115,32 @@ public class KnowledgeBaseUploadService {
         );
     }
 
+    /**
+     * 重新向量化知识库（手动重试）
+     * 从 RustFS 重新下载文件并发送向量化任务
+     *
+     * @param kbId 知识库ID
+     */
+    public void revectorize(Long kbId) {
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findById(kbId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "知识库不存在"));
+
+        log.info("开始重新向量化知识库: kbId={}, name={}", kbId, kb.getName());
+
+        // 1. 下载文件并解析内容
+        String content = parseService.downloadAndParseContent(kb.getStorageKey(), kb.getOriginalFilename());
+        if (content == null || content.trim().isEmpty()) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "无法从文件中提取文本内容");
+        }
+
+        // 2. 更新状态为 PENDING（通过单独的 Service 保证事务生效）
+        persistenceService.updateVectorStatusToPending(kbId);
+
+        // 3. 发送向量化任务到 Stream
+        vectorizeStreamProducer.sendVectorizeTask(kbId, content);
+
+        log.info("重新向量化任务已发送: kbId={}", kbId);
+    }
+
 
 }

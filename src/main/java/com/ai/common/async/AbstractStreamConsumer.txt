@@ -1,0 +1,558 @@
+┌─────────────┐      ┌──────────────┐      ┌─────────────┐      ┌──────────────┐
+│  Producer   │      │ Redis Stream │      │  Consumer   │      │   Database   │
+└──────┬──────┘      └──────┬───────┘      └──────┬──────┘      └──────┬───────┘
+       │                    │                      │                    │
+       │ sendTask(123, ...) │                      │                    │
+       │───────────────────>│                      │                    │
+       │                    │                      │                    │
+       │                    │ readGroup()          │                    │
+       │                    │<─────────────────────│                    │
+       │                    │                      │                    │
+       │                    │ [Message:            │                    │
+       │                    │  kbId=123,           │                    │
+       │                    │  content="..."]      │                    │
+       │                    │                      │                    │
+       │                    │ processMessage()     │                    │
+       │                    │─────────────────────>│                    │
+       │                    │                      │                    │
+       │                    │                      │ markProcessing()   │
+       │                    │                      │───────────────────>│
+       │                    │                      │                    │
+       │                    │                      │ UPDATE vector_status='PROCESSING'
+       │                    │                      │                    │
+       │                    │                      │                    │
+       │                    │                      │ vectorizeAndStore()│
+       │                    │                      │ (文本分块、生成向量)│
+       │                    │                      │                    │
+       │                    │                      │ markCompleted()    │
+       │                    │                      │───────────────────>│
+       │                    │                      │                    │
+       │                    │                      │ UPDATE vector_status='COMPLETED'
+       │                    │                      │ SET chunk_count=3  │
+       │                    │                      │                    │
+       │                    │                      │ ackMessage()       │
+       │                    │<─────────────────────│                    │
+       │                    │                      │                    │
+       │                    │ [ACK: messageId]     │                    │
+       │                    │                      │                    │
+
+
+
+
+
+我来给你一个完整的实际例子，演示从发送消息到消费处理的全过程。
+
+## 📝 **完整示例：知识库向量化流程**
+
+---
+
+## **场景描述**
+
+用户上传了一个 PDF 文档（比如"Java 面试题.pdf"），系统需要将其内容向量化存储到向量数据库。
+
+---
+
+## **第一步：Producer 发送任务**
+
+```java
+// VectorizeStreamProducer.java
+public void sendVectorizeTask(Long kbId, String content) {
+    sendTask(new VectorizeTaskPayload(kbId, content));
+}
+
+// 假设调用
+Long kbId = 123L;
+String content = "Java 面试题的文本内容...";
+vectorizeStreamProducer.sendVectorizeTask(kbId, content);
+```
+
+
+### **发送到 Redis Stream 的消息**
+
+```java
+// AbstractStreamProducer.sendTask()
+Map<String, String> message = Map.of(
+    "kbId", "123",
+    "content", "Java 面试题的文本内容...",
+    "retryCount", "0"
+);
+
+// Redis Stream 结构
+Stream Key: "knowledgebase:vectorize:stream"
+Message ID: "1710234567890-0"
+Data: {
+    "kbId": "123",
+    "content": "Java 面试题的文本内容...",
+    "retryCount": "0"
+}
+```
+
+
+---
+
+## **第二步：Consumer 接收并处理**
+
+### **1. 启动阶段（应用启动时）**
+
+```java
+// @PostConstruct init()
+VectorizeStreamConsumer consumer = new VectorizeStreamConsumer(...);
+consumer.init();
+
+// 执行结果：
+// ✅ consumerName = "vectorize-consumer-a1b2c3d4"
+// ✅ 创建消费者组 "vectorize-group"
+// ✅ 启动守护线程 "vectorize-consumer"
+// ✅ 开始 consumeLoop() 循环
+```
+
+
+**日志输出：**
+```
+INFO  Redis Stream 消费者组已创建或已存在：vectorize-group
+INFO  向量化消费者已启动：consumerName=vectorize-consumer-a1b2c3d4
+```
+
+
+---
+
+### **2. 轮询消息**
+
+```java
+// consumeLoop() - 第一次轮询
+redisService.streamConsumeMessages(
+    "knowledgebase:vectorize:stream",
+    "vectorize-group",
+    "vectorize-consumer-a1b2c3d4",
+    10,     // BATCH_SIZE
+    1000,   // POLL_INTERVAL_MS (阻塞等待 1 秒)
+    this::processMessage
+);
+
+// Redisson 底层调用
+stream.readGroup(
+    "vectorize-group",
+    "vectorize-consumer-a1b2c3d4",
+    StreamReadGroupArgs.neverDelivered()
+        .count(10)
+        .timeout(Duration.ofMillis(1000))
+);
+
+// 返回消息
+Map<StreamMessageId, Map<String, String>> messages = {
+    StreamMessageId("1710234567890-0"): {
+        "kbId": "123",
+        "content": "Java 面试题的文本内容...",
+        "retryCount": "0"
+    }
+};
+```
+
+
+---
+
+### **3. 处理消息（核心流程）**
+
+```java
+// processMessage(messageId, data)
+StreamMessageId messageId = new StreamMessageId("1710234567890-0");
+Map<String, String> data = {
+    "kbId": "123",
+    "content": "Java 面试题的文本内容...",
+    "retryCount": "0"
+};
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 步骤 1: 解析负载
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VectorizePayload payload = parsePayload(messageId, data);
+// ↓ 执行 parsePayload() 方法
+String kbIdStr = data.get("kbId");      // "123"
+String content = data.get("content");   // "Java 面试题的文本内容..."
+// ✅ 验证通过
+return new VectorizePayload(123L, "Java 面试题的文本内容...");
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 步骤 2: 获取重试次数
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+int retryCount = parseRetryCount(data);
+// ↓ 执行 parseRetryCount() 方法
+Integer.parseInt(data.getOrDefault("retryCount", "0"));  // 0
+
+log.info("开始处理向量化任务：kbId=123, messageId=1710234567890-0, retryCount=0");
+```
+
+
+**日志输出：**
+```
+INFO  开始处理向量化任务：kbId=123, messageId=1710234567890-0, retryCount=0
+```
+
+
+---
+
+### **4. 执行业务逻辑**
+
+```java
+try {
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 步骤 3: 标记为处理中
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    markProcessing(payload);
+    // ↓ 调用 updateVectorStatus()
+    knowledgeBaseRepository.findById(123L).ifPresent(kb -> {
+        kb.setVectorStatus(VectorStatus.PROCESSING);
+        kb.setVectorError(null);
+        knowledgeBaseRepository.save(kb);
+    });
+
+    // 数据库状态变更：
+    // KnowledgeBaseEntity {
+    //     id: 123,
+    //     name: "Java 面试题",
+    //     vectorStatus: PROCESSING,
+    //     vectorError: null
+    // }
+
+    log.debug("向量化状态已更新：kbId=123, status=PROCESSING");
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 步骤 4: 核心业务逻辑 ⭐
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    processBusiness(payload);
+    // ↓ 调用 vectorService.vectorizeAndStore()
+    vectorService.vectorizeAndStore(123L, "Java 面试题的文本内容...");
+
+    // ▼▼▼ 向量化服务内部处理 ▼▼▼
+    // 1. 文本分块（chunking）
+    List<String> chunks = textSplitter.split("Java 面试题的文本内容...");
+    // chunks = [
+    //     "1. Java 基础问题：什么是 JVM？",
+    //     "2. 集合框架：HashMap 的原理是什么？",
+    //     "3. 并发编程：synchronized 和 Lock 的区别？"
+    // ]
+
+    // 2. 生成向量（Embedding）
+    List<float[]> embeddings = embeddingModel.embedAll(chunks);
+    // embeddings = [
+    //     [0.1f, 0.2f, 0.3f, ...],  // chunk 1 的向量
+    //     [0.4f, 0.5f, 0.6f, ...],  // chunk 2 的向量
+    //     [0.7f, 0.8f, 0.9f, ...]   // chunk 3 的向量
+    // ]
+
+    // 3. 存储到向量数据库
+    vectorRepository.saveAll(chunks, embeddings, 123L);
+
+    // 4. 返回分块数量
+    return chunks.size();  // 3
+    // ▲▲▲ 向量化服务处理完成 ▲▲▲
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 步骤 5: 标记为完成
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    markCompleted(payload);
+    // ↓ 调用 updateVectorStatus()
+    knowledgeBaseRepository.findById(123L).ifPresent(kb -> {
+        kb.setVectorStatus(VectorStatus.COMPLETED);
+        kb.setVectorError(null);
+        kb.setChunkCount(3);  // 更新分块数量
+        knowledgeBaseRepository.save(kb);
+    });
+
+    // 数据库状态变更：
+    // KnowledgeBaseEntity {
+    //     id: 123,
+    //     name: "Java 面试题",
+    //     vectorStatus: COMPLETED,
+    //     vectorError: null,
+    //     chunkCount: 3
+    // }
+
+    log.debug("向量化状态已更新：kbId=123, status=COMPLETED");
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 步骤 6: ACK 确认
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ackMessage(messageId);
+    // ↓ 调用 redisService.streamAck()
+    redisService.streamAck(
+        "knowledgebase:vectorize:stream",
+        "vectorize-group",
+        new StreamMessageId("1710234567890-0")
+    );
+
+    log.info("向量化任务完成：kbId=123");
+
+} catch (Exception e) {
+    // 异常处理（本例未触发）
+}
+```
+
+
+**日志输出：**
+```
+DEBUG 向量化状态已更新：kbId=123, status=PROCESSING
+DEBUG 向量化状态已更新：kbId=123, status=COMPLETED
+INFO  向量化任务完成：kbId=123
+```
+
+
+---
+
+## **第三步：异常情况处理（举例）**
+
+### **场景：向量化服务临时故障**
+
+```java
+// processBusiness(payload) 抛出异常
+vectorService.vectorizeAndStore(123L, content);
+// ❌ 抛出 RuntimeException: "向量服务连接超时"
+
+catch (Exception e) {
+    log.error("向量化任务失败：kbId=123, error=向量服务连接超时", e);
+
+    // 检查重试次数
+    if (retryCount (0) < MAX_RETRY_COUNT (3)) {
+        // ✅ 重新入队
+        retryMessage(payload, 1);
+    } else {
+        markFailed(payload, error);
+    }
+
+    ackMessage(messageId);
+}
+```
+
+
+### **重试入队**
+
+```java
+protected void retryMessage(VectorizePayload payload, int retryCount) {
+    Long kbId = 123L;
+    String content = "Java 面试题的文本内容...";
+
+    // 构造新消息（retryCount + 1）
+    Map<String, String> message = Map.of(
+        "kbId", "123",
+        "content", "Java 面试题的文本内容...",
+        "retryCount", "1"  // ⬆️ 重试次数 +1
+    );
+
+    // 重新发送到 Redis Stream
+    redisService().streamAdd(
+        "knowledgebase:vectorize:stream",
+        message,
+        1000  // STREAM_MAX_LEN
+    );
+
+    log.info("向量化任务已重新入队：kbId=123, retryCount=1");
+}
+```
+
+
+**新的 Redis Stream 消息：**
+```
+Stream Key: "knowledgebase:vectorize:stream"
+Message ID: "1710234567999-0"
+Data: {
+    "kbId": "123",
+    "content": "Java 面试题的文本内容...",
+    "retryCount": "1"  // ⬆️ 重试次数
+}
+```
+
+
+**日志输出：**
+```
+ERROR 向量化任务失败：kbId=123, error=向量服务连接超时
+       java.net.SocketTimeoutException: 向量服务连接超时
+       at VectorService.vectorizeAndStore(...)
+INFO  向量化任务已重新入队：kbId=123, retryCount=1
+```
+
+
+---
+
+### **第二次消费（重试）**
+
+```java
+// 几秒后，Consumer 再次轮询到这条消息
+StreamMessageId messageId = new StreamMessageId("1710234567999-0");
+Map<String, String> data = {
+    "kbId": "123",
+    "content": "Java 面试题的文本内容...",
+    "retryCount": "1"
+};
+
+// 解析 payload
+VectorizePayload payload = new VectorizePayload(123L, "Java 面试题的文本内容...");
+
+// 获取重试次数
+int retryCount = Integer.parseInt(data.get("retryCount"));  // 1
+
+log.info("开始处理向量化任务：kbId=123, retryCount=1");
+
+// 执行业务逻辑（这次成功了）
+processBusiness(payload);
+// ✅ 向量化成功
+
+markCompleted(payload);
+ackMessage(messageId);
+
+log.info("向量化任务完成：kbId=123");
+```
+
+
+**日志输出：**
+```
+INFO  开始处理向量化任务：kbId=123, retryCount=1
+INFO  向量化任务完成：kbId=123
+```
+
+
+---
+
+## **第四步：超过最大重试次数**
+
+### **场景：连续失败 3 次**
+
+```
+第 1 次消费：retryCount=0 → 失败 → 重试入队 (retryCount=1)
+第 2 次消费：retryCount=1 → 失败 → 重试入队 (retryCount=2)
+第 3 次消费：retryCount=2 → 失败 → 重试入队 (retryCount=3)
+第 4 次消费：retryCount=3 → 失败 → 标记失败 (不再重试)
+```
+
+
+### **第 4 次消费（最后一次尝试）**
+
+```java
+// retryCount = 3
+if (retryCount (3) < MAX_RETRY_COUNT (3)) {
+    // ❌ 条件不成立，不重试
+    retryMessage(payload, 4);
+} else {
+    // ✅ 标记为最终失败
+    markFailed(payload, truncateError(
+        "向量化失败 (已重试 3 次): 向量服务不可用"
+    ));
+}
+
+ackMessage(messageId);
+```
+
+
+### **标记失败**
+
+```java
+protected void markFailed(VectorizePayload payload, String error) {
+    updateVectorStatus(123L, VectorStatus.FAILED, "向量化失败 (已重试 3 次): 向量服务不可用");
+}
+
+private void updateVectorStatus(Long kbId, VectorStatus status, String error) {
+    knowledgeBaseRepository.findById(123L).ifPresent(kb -> {
+        kb.setVectorStatus(VectorStatus.FAILED);
+        kb.setVectorError("向量化失败 (已重试 3 次): 向量服务不可用");
+        knowledgeBaseRepository.save(kb);
+    });
+}
+```
+
+
+**数据库最终状态：**
+```sql
+UPDATE knowledge_bases
+SET vector_status = 'FAILED',
+    vector_error = '向量化失败 (已重试 3 次): 向量服务不可用',
+    chunk_count = 0
+WHERE id = 123;
+```
+
+
+**日志输出：**
+```
+ERROR 向量化任务失败：kbId=123, error=向量服务不可用
+       java.net.ConnectException: 连接拒绝
+ERROR 更新向量化状态失败：kbId=123, status=FAILED, error=...
+```
+
+
+---
+
+## **📊 完整流程时序图**
+
+```
+┌─────────────┐      ┌──────────────┐      ┌─────────────┐      ┌──────────────┐
+│  Producer   │      │ Redis Stream │      │  Consumer   │      │   Database   │
+└──────┬──────┘      └──────┬───────┘      └──────┬──────┘      └──────┬───────┘
+       │                    │                      │                    │
+       │ sendTask(123, ...) │                      │                    │
+       │───────────────────>│                      │                    │
+       │                    │                      │                    │
+       │                    │ readGroup()          │                    │
+       │                    │<─────────────────────│                    │
+       │                    │                      │                    │
+       │                    │ [Message:            │                    │
+       │                    │  kbId=123,           │                    │
+       │                    │  content="..."]      │                    │
+       │                    │                      │                    │
+       │                    │ processMessage()     │                    │
+       │                    │─────────────────────>│                    │
+       │                    │                      │                    │
+       │                    │                      │ markProcessing()   │
+       │                    │                      │───────────────────>│
+       │                    │                      │                    │
+       │                    │                      │ UPDATE vector_status='PROCESSING'
+       │                    │                      │                    │
+       │                    │                      │                    │
+       │                    │                      │ vectorizeAndStore()│
+       │                    │                      │ (文本分块、生成向量)│
+       │                    │                      │                    │
+       │                    │                      │ markCompleted()    │
+       │                    │                      │───────────────────>│
+       │                    │                      │                    │
+       │                    │                      │ UPDATE vector_status='COMPLETED'
+       │                    │                      │ SET chunk_count=3  │
+       │                    │                      │                    │
+       │                    │                      │ ackMessage()       │
+       │                    │<─────────────────────│                    │
+       │                    │                      │                    │
+       │                    │ [ACK: messageId]     │                    │
+       │                    │                      │                    │
+```
+
+
+---
+
+## **🎯 关键要点总结**
+
+### **1. 消息流转**
+```
+Producer → Redis Stream → Consumer → Database/VectorDB
+```
+
+
+### **2. 状态变化**
+```
+PENDING → PROCESSING → COMPLETED
+                      ↘ FAILED (超过重试次数)
+```
+
+
+### **3. 重试机制**
+```
+retryCount: 0 → 1 → 2 → 3 (失败，不再重试)
+```
+
+
+### **4. 日志跟踪**
+```
+INFO  向量化消费者已启动：consumerName=vectorize-consumer-a1b2c3d4
+INFO  开始处理向量化任务：kbId=123, retryCount=0
+DEBUG 向量化状态已更新：kbId=123, status=PROCESSING
+DEBUG 向量化状态已更新：kbId=123, status=COMPLETED
+INFO  向量化任务完成：kbId=123
+```
+
+
+这就是完整的实际运行示例！每个步骤都有对应的代码执行和日志输出，方便你理解整个消息消费流程。

@@ -29,26 +29,31 @@ public class VectorizeStreamConsumer extends AbstractStreamConsumer<VectorizeStr
         this.knowledgeBaseRepository = knowledgeBaseRepository;
     }
 
+    // 任务显示名称（用于日志）
     @Override
     protected String taskDisplayName() {
         return "向量化";
     }
 
+    // "knowledgebase:vectorize:stream"
     @Override
     protected String streamKey() {
         return AsyncTaskStreamConstants.KB_VECTORIZE_STREAM_KEY;
     }
 
+    // "vectorize-group"
     @Override
     protected String groupName() {
         return AsyncTaskStreamConstants.KB_VECTORIZE_GROUP_NAME;
     }
 
+    // "vectorize-consumer-" + UUID(8 位)
     @Override
     protected String consumerPrefix() {
         return AsyncTaskStreamConstants.KB_VECTORIZE_CONSUMER_PREFIX;
     }
 
+    // 线程名称
     @Override
     protected String threadName() {
         return "vectorize-consumer";
@@ -75,6 +80,7 @@ public class VectorizeStreamConsumer extends AbstractStreamConsumer<VectorizeStr
         updateVectorStatus(payload.kbId(), VectorStatus.PROCESSING, null);
     }
 
+    // 核心业务逻辑
     @Override
     protected void processBusiness(VectorizePayload payload) {
         vectorService.vectorizeAndStore(payload.kbId(), payload.content());

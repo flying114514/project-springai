@@ -56,6 +56,12 @@ dependencies {
     // Spring AI 2.0 - PostgreSQL Vector Store (pgvector)
     implementation "org.springframework.ai:spring-ai-starter-vector-store-pgvector:2.0.0-M1"
 
+    // MapStruct - 对象映射 (必须在Lombok之后配置)
+    implementation 'org.mapstruct:mapstruct:1.6.3'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
+
 }
 
 tasks.named('test') {

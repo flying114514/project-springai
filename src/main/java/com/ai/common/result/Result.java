@@ -2,7 +2,11 @@ package com.ai.common.result;
 
 import com.ai.common.constant.CommonConstants;
 import com.ai.common.exception.ErrorCode;
+import com.ai.modules.knowledgebase.model.KnowledgeBaseListItemDTO;
 import lombok.Getter;
+
+import java.util.List;
+
 /**
  * 统一响应结果
  */
@@ -20,7 +24,7 @@ public class Result<T> {
 
     // ========== 成功响应 ==========
 
-    public static <T> Result<T> success() {
+    public static <T> Result<T> success(List<KnowledgeBaseListItemDTO> knowledgeBaseListItemDTOS) {
         return new Result<>(CommonConstants.StatusCode.SUCCESS, "success", null);
     }
 
