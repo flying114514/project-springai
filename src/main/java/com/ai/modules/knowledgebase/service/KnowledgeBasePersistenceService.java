@@ -3,6 +3,7 @@ package com.ai.modules.knowledgebase.service;
 import com.ai.common.exception.BusinessException;
 import com.ai.common.exception.ErrorCode;
 import com.ai.modules.knowledgebase.model.KnowledgeBaseEntity;
+import com.ai.modules.knowledgebase.model.VectorStatus;
 import com.ai.modules.knowledgebase.repository.KnowledgeBaseRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -77,6 +78,21 @@ public class KnowledgeBasePersistenceService {
     }
 
     /**
+     * 更新知识库向量化状态为 PENDING
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void updateVectorStatusToPending(Long kbId) {
+        KnowledgeBaseEntity kb = knowledgeBaseRepository.findById(kbId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "知识库不存在"));
+
+        kb.setVectorStatus(VectorStatus.PENDING);
+        kb.setVectorError(null);
+        knowledgeBaseRepository.save(kb);
+
+        log.info("知识库向量化状态已更新为 PENDING: kbId={}", kbId);
+    }
+
+    /**
      * 从文件名提取知识库名称（去除扩展名）
      */
     private String extractNameFromFilename(String filename) {
@@ -89,5 +105,4 @@ public class KnowledgeBasePersistenceService {
         }
         return filename;
     }
-
 }

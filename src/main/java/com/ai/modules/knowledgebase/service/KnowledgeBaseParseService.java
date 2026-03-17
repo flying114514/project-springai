@@ -44,6 +44,18 @@ public class KnowledgeBaseParseService {
     }
 
     /**
+     * 从存储下载文件并解析内容
+     *
+     * @param storageKey       存储键
+     * @param originalFilename 原始文件名
+     * @return 提取的文本内容
+     */
+    public String downloadAndParseContent(String storageKey, String originalFilename) {
+        log.info("从存储下载并解析知识库文件: {}", originalFilename);
+        return documentParseService.downloadAndParseContent(storageService, storageKey, originalFilename);
+    }
+
+    /**
      * 检测文件的MIME类型
      */
     public String detectContentType(MultipartFile file) {

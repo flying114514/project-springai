@@ -15,7 +15,7 @@ public class RateLimitExceededException extends BusinessException {
     }
 
     public RateLimitExceededException(String message, Throwable cause) {
-        super(message, ErrorCode.RATE_LIMIT_EXCEEDED.getCode());
+        super(ErrorCode.RATE_LIMIT_EXCEEDED.getCode(), message);
         this.initCause(cause);
     }
 }

@@ -30,7 +30,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class FileStorageService {
     private final S3Client s3Client;
-    private StorageConfigProperties storageConfig;
+    private final StorageConfigProperties storageConfig;
 
 
     /**

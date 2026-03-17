@@ -27,12 +27,15 @@ import java.io.InputStream;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class DocumentParseService {
 
     private static final int MAX_TEXT_LENGTH = 5 * 1024 * 1024; // 5MB
 
     private final TextCleaningService textCleaningService;
+
+    public DocumentParseService(TextCleaningService textCleaningService) {
+        this.textCleaningService = textCleaningService;
+    }
 
     /**
      * 解析上传的文件，提取文本内容
@@ -121,6 +124,7 @@ public class DocumentParseService {
 
         // 6. 禁用嵌入文档解析（关键：避免提取图片引用和临时文件路径）
         context.set(EmbeddedDocumentExtractor.class, new NoOpEmbeddedDocumentExtractor());
+
         // 7. PDF 专用配置：关闭图片提取，按位置排序文本
         PDFParserConfig pdfConfig = new PDFParserConfig();
         pdfConfig.setExtractInlineImages(false);
@@ -135,5 +139,26 @@ public class DocumentParseService {
         return handler.toString();
     }
 
-
+    /**
+     * 从存储下载文件并解析内容
+     *
+     * @param storageService   文件存储服务
+     * @param storageKey       存储键
+     * @param originalFilename 原始文件名
+     * @return 提取的文本内容
+     */
+    public String downloadAndParseContent(FileStorageService storageService, String storageKey, String originalFilename) {
+        try {
+            byte[] fileBytes = storageService.downloadFile(storageKey);
+            if (fileBytes == null || fileBytes.length == 0) {
+                throw new BusinessException(ErrorCode.INTERNAL_ERROR, "下载文件失败");
+            }
+            return parseContent(fileBytes, originalFilename);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("下载并解析文件失败: storageKey={}, error={}", storageKey, e.getMessage(), e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "下载并解析文件失败: " + e.getMessage());
+        }
+    }
 }

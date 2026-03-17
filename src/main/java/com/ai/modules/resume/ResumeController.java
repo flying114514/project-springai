@@ -3,6 +3,8 @@ package com.ai.modules.resume;
 
 import com.ai.common.annotation.RateLimit;
 import com.ai.common.result.Result;
+import com.ai.modules.resume.service.ResumeDeleteService;
+import com.ai.modules.resume.service.ResumeHistoryService;
 import com.ai.modules.resume.service.ResumeUploadService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
