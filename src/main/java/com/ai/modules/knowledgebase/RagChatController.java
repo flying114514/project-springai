@@ -1,8 +1,8 @@
-package com.ai.modules.resume;
+package com.ai.modules.knowledgebase;
 
 import com.ai.common.result.Result;
-import com.ai.modules.resume.model.RagChatDTO.*;
-import com.ai.modules.resume.service.RagChatSessionService;
+import com.ai.modules.knowledgebase.model.RagChatDTO.*;
+import com.ai.modules.knowledgebase.service.RagChatSessionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -5,7 +5,7 @@ import com.ai.modules.knowledgebase.model.KnowledgeBaseEntity;
 import com.ai.modules.knowledgebase.model.KnowledgeBaseListItemDTO;
 import com.ai.modules.knowledgebase.model.RagChatMessageEntity;
 import com.ai.modules.knowledgebase.model.RagChatSessionEntity;
-import com.ai.modules.resume.model.RagChatDTO;
+import com.ai.modules.knowledgebase.model.RagChatDTO;
 import org.mapstruct.*;
 
 import java.util.Collection;

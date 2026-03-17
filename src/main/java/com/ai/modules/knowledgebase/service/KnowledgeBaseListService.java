@@ -7,7 +7,7 @@ import com.ai.infrastructure.file.FileStorageService;
 import com.ai.infrastructure.mapper.KnowledgeBaseMapper;
 import com.ai.modules.knowledgebase.model.*;
 import com.ai.modules.knowledgebase.repository.KnowledgeBaseRepository;
-import com.ai.modules.resume.repository.RagChatMessageRepository;
+import com.ai.modules.knowledgebase.repository.RagChatMessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

@@ -1,6 +1,5 @@
-package com.ai.modules.resume.model;
+package com.ai.modules.knowledgebase.model;
 
-import com.ai.modules.knowledgebase.model.KnowledgeBaseListItemDTO;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 

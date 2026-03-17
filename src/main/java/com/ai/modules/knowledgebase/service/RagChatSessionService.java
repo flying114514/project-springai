@@ -1,4 +1,4 @@
-package com.ai.modules.resume.service;
+package com.ai.modules.knowledgebase.service;
 
 import com.ai.common.exception.BusinessException;
 import com.ai.common.exception.ErrorCode;
@@ -10,18 +10,17 @@ import com.ai.modules.knowledgebase.model.RagChatMessageEntity;
 import com.ai.modules.knowledgebase.model.RagChatSessionEntity;
 import com.ai.modules.knowledgebase.repository.KnowledgeBaseRepository;
 import com.ai.modules.knowledgebase.repository.RagChatSessionRepository;
-import com.ai.modules.knowledgebase.service.KnowledgeBaseQueryService;
-import com.ai.modules.resume.model.RagChatDTO;
-import com.ai.modules.resume.model.RagChatDTO.SessionDTO;
-import com.ai.modules.resume.model.RagChatDTO.SessionListItemDTO;
+import com.ai.modules.knowledgebase.model.RagChatDTO;
+import com.ai.modules.knowledgebase.model.RagChatDTO.SessionDTO;
+import com.ai.modules.knowledgebase.model.RagChatDTO.SessionListItemDTO;
 
-import com.ai.modules.resume.repository.RagChatMessageRepository;
+import com.ai.modules.knowledgebase.repository.RagChatMessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
-import com.ai.modules.resume.model.RagChatDTO.CreateSessionRequest;
+import com.ai.modules.knowledgebase.model.RagChatDTO.CreateSessionRequest;
 
 import java.util.HashSet;
 import java.util.List;

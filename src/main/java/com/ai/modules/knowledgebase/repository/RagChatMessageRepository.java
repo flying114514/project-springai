@@ -1,4 +1,4 @@
-package com.ai.modules.resume.repository;
+package com.ai.modules.knowledgebase.repository;
 
 import com.ai.modules.knowledgebase.model.RagChatMessageEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
