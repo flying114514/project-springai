@@ -1,0 +1,29 @@
+浏览器       Controller           Service         KnowledgeBaseQueryService    AI 服务
+  │             │                    │                      │                     │
+  │─POST /stream─→                  │                      │                     │
+  │             │─prepareStream──→ │                      │                     │
+  │             │                   │─保存用户消息───→ DB   │                     │
+  │             │                   │─创建 AI 占位符──→ DB   │                     │
+  │             │←─返回 messageId   │                      │                     │
+  │             │                    │                      │                     │
+  │             │─getStreamAnswer→ │                      │                     │
+  │             │                   │─构建 RAG 查询───→    │                     │
+  │             │                   │─向量检索─────────→   │                     │
+  │             │                   │─构建 Prompt──────→   │                     │
+  │             │                   │                      │─.stream()──────→   │
+  │             │                   │                      │                     │
+  │             │                   │←────Flux<String>─────│                     │
+  │             │←────Flux<SSE>─────│                      │                     │
+  │             │                    │                      │                     │
+  │◄─SSE 事件───│ (逐段转发)          │                      │                     │
+  │ Spring      │                    │                      │                     │
+  │ Boot 是...  │                    │                      │                     │
+  │             │                    │                      │                     │
+  │ 一个...     │                    │                      │                     │
+  │             │                    │                      │                     │
+  │ [持续接收]  │                    │                      │                     │
+  │             │                    │                      │                     │
+  │             │ [流式结束]          │                      │                     │
+  │             │─completeStream─→  │                      │                     │
+  │             │                   │─更新 AI 消息─────→ DB  │                     │
+  │◄─complete──│                    │                      │                     │
