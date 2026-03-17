@@ -1,4 +1,4 @@
-package com.ai.modules.service;
+package com.ai.modules.interview.service;
 
 
 import com.ai.common.ai.StructuredOutputInvoker;

@@ -62,6 +62,9 @@ dependencies {
     annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
 
+    // PDF导出 - iText 8
+    implementation 'com.itextpdf:itext-core:8.0.5'
+    implementation 'com.itextpdf:font-asian:8.0.5'
 
 }
 
