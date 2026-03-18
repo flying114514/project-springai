@@ -18,6 +18,7 @@ import java.util.List;
 @Mapper(
     componentModel = MappingConstants.ComponentModel.SPRING,
     unmappedTargetPolicy = ReportingPolicy.IGNORE,
+    // 如果有不会转的对象，就去找 KnowledgeBaseMapper.class 帮忙
     uses = KnowledgeBaseMapper.class
 )
 public interface RagChatMapper {
