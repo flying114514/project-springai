@@ -24,10 +24,6 @@ public class Result<T> {
 
     // ========== 成功响应 ==========
 
-    public static <T> Result<T> success(List<KnowledgeBaseListItemDTO> knowledgeBaseListItemDTOS) {
-        return new Result<>(CommonConstants.StatusCode.SUCCESS, "success", null);
-    }
-
     public static <T> Result<T> success(T data) {
         return new Result<>(CommonConstants.StatusCode.SUCCESS, "success", data);
     }

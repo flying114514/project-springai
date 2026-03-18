@@ -39,18 +39,23 @@ public class KnowledgeBaseListService {
      * @return 知识库列表
      */
     public List<KnowledgeBaseListItemDTO> listKnowledgeBases(VectorStatus vectorStatus, String sortBy) {
+        log.debug("查询知识库列表：vectorStatus={}, sortBy={}", vectorStatus, sortBy);
+        
         List<KnowledgeBaseEntity> entities;
         
         // 如果指定了状态，按状态过滤
         if (vectorStatus != null) {
             entities = knowledgeBaseRepository.findByVectorStatusOrderByUploadedAtDesc(vectorStatus);
+            log.debug("按状态查询结果：{} 条", entities.size());
         } else {
             // 否则获取所有知识库
             entities = knowledgeBaseRepository.findAllByOrderByUploadedAtDesc();
+            log.debug("查询所有知识库结果：{} 条", entities.size());
         }
         
         // 如果指定了排序字段，在内存中排序
         if (sortBy != null && !sortBy.isBlank() && !sortBy.equalsIgnoreCase("time")) {
+            log.debug("按字段排序：{}", sortBy);
             entities = sortEntities(entities, sortBy);
         }
         

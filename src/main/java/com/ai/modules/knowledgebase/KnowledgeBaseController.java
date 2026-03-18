@@ -41,20 +41,32 @@ public class KnowledgeBaseController {
      */
     @GetMapping("/api/knowledgebase/list")
     public Result<List<KnowledgeBaseListItemDTO>> getAllKnowledgeBases(
-            // 可选,根据分类排序
+            // 可选，根据分类排序
             @RequestParam(value = "sortBy", required = false) String sortBy,
             @RequestParam(value = "vectorStatus", required = false) String vectorStatus) {
-
+            
+        log.info("收到知识库列表请求：sortBy={}, vectorStatus={}", sortBy, vectorStatus);
+    
         VectorStatus status = null;
         if (vectorStatus != null && !vectorStatus.isBlank()) {
             try {
                 status = VectorStatus.valueOf(vectorStatus.toUpperCase());
             } catch (IllegalArgumentException e) {
-                return Result.error("无效的向量化状态: " + vectorStatus);
+                log.warn("无效的向量化状态：{}", vectorStatus, e);
+                return Result.error("无效的向量化状态：" + vectorStatus);
             }
         }
-
-        return Result.success(listService.listKnowledgeBases(status, sortBy));
+    
+        List<KnowledgeBaseListItemDTO> result = listService.listKnowledgeBases(status, sortBy);
+        log.info("返回知识库列表，数量：{}", result.size());
+            
+        // 调试：记录每个知识库的基本信息
+        for (KnowledgeBaseListItemDTO dto : result) {
+            log.debug("知识库：id={}, name={}, category={}, vectorStatus={}", 
+                dto.id(), dto.name(), dto.category(), dto.vectorStatus());
+        }
+            
+        return Result.success(result);
     }
 
     /**
